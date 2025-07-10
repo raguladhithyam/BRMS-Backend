@@ -364,8 +364,8 @@ async function startServer() {
       console.log(`📡 Server running on port ${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
-      console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
+      console.log(`📊 Health check: http://${KEEP_ALIVE_URL}/health`);
+      console.log(`🧪 Test endpoint: http://${KEEP_ALIVE_URL}/api/test`);
       console.log(`⏰ Keep-alive monitoring: ${(process.env.KEEP_ALIVE_URL && process.env.KEEP_ALIVE_URL.includes('onrender.com')) ? 'ENABLED' : 'DISABLED'}`);
       console.log('\n📋 Available endpoints:');
       console.log('   POST /api/auth/login');
