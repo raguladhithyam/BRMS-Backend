@@ -43,6 +43,11 @@ const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL;
 const INACTIVITY_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
 const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
+// Helper to check if keep-alive is enabled
+const isKeepAliveEnabled = () => {
+  return !!(KEEP_ALIVE_URL && KEEP_ALIVE_URL.includes('onrender.com'));
+};
+
 // Activity tracking
 let lastActivity = Date.now();
 let keepAliveInterval = null;
@@ -311,8 +316,21 @@ const gracefulShutdown = async (signal: string) => {
 };
 
 // Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => {
+  if (isKeepAliveEnabled()) {
+    console.log('🟡 SIGTERM received but ignored due to keep-alive being enabled (Render platform)');
+    return;
+  }
+  gracefulShutdown('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  if (isKeepAliveEnabled()) {
+    console.log('🟡 SIGINT received but ignored due to keep-alive being enabled (Render platform)');
+    return;
+  }
+  gracefulShutdown('SIGINT');
+});
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
