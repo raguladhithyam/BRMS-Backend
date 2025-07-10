@@ -70,7 +70,7 @@ const templates = {
       <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
         <h4 style="color: #92400e; margin-top: 0;">Emergency Contact:</h4>
         <p style="color: #92400e; margin: 0;">
-          For urgent requests, please call: <strong>+1 (555) 123-4567</strong><br>
+          For urgent requests, please call: <strong>+91 9952810338</strong><br>
           Available 24/7 for critical situations
         </p>
       </div>
