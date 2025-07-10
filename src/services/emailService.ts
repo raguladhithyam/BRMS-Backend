@@ -239,6 +239,84 @@ const templates = {
     <p>Please log in and change your password: <a href="${data.loginUrl}">Login Here</a></p>
     <p>Thank you for joining our life-saving community!</p>
   `,
+
+  certificateApproved: (data: any) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #dc2626; text-align: center;">🎉 Congratulations!</h2>
+      
+      <p>Dear <strong>${data.donorName}</strong>,</p>
+      
+      <p>Your blood donation certificate has been approved by the administrator.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #374151; margin-top: 0;">Certificate Details:</h3>
+        <ul style="list-style: none; padding: 0;">
+          <li style="margin: 8px 0;"><strong>Certificate Number:</strong> ${data.certificateNumber}</li>
+          <li style="margin: 8px 0;"><strong>Donation Date:</strong> ${data.donationDate}</li>
+          <li style="margin: 8px 0;"><strong>Hospital:</strong> ${data.hospitalName}</li>
+        </ul>
+      </div>
+      
+      <p>You can now download your certificate from your dashboard.</p>
+      <p>Thank you for your life-saving contribution!</p>
+      
+      <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+        <p style="color: #9ca3af; font-size: 14px;">
+          BloodConnect Team ❤️
+        </p>
+      </div>
+    </div>
+  `,
+
+  donationCompleted: (data: any) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #dc2626; text-align: center;">🩸 Blood Donation Completed</h2>
+      
+      <p>The blood donation for your request has been completed and a certificate has been generated.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #374151; margin-top: 0;">Donation Details:</h3>
+        <ul style="list-style: none; padding: 0;">
+          <li style="margin: 8px 0;"><strong>Donor:</strong> ${data.donorName}</li>
+          <li style="margin: 8px 0;"><strong>Blood Group:</strong> ${data.bloodGroup}</li>
+          <li style="margin: 8px 0;"><strong>Units:</strong> ${data.units}</li>
+          <li style="margin: 8px 0;"><strong>Hospital:</strong> ${data.hospitalName}</li>
+        </ul>
+      </div>
+      
+      <p>Thank you for using our Blood Request Management System.</p>
+      
+      <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+        <p style="color: #9ca3af; font-size: 14px;">
+          BloodConnect Team ❤️
+        </p>
+      </div>
+    </div>
+  `,
+
+  adminCertificateApproved: (data: any) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #dc2626; text-align: center;">✅ Certificate Approved</h2>
+      
+      <p>A blood donation certificate has been approved and generated.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #374151; margin-top: 0;">Certificate Details:</h3>
+        <ul style="list-style: none; padding: 0;">
+          <li style="margin: 8px 0;"><strong>Certificate Number:</strong> ${data.certificateNumber}</li>
+          <li style="margin: 8px 0;"><strong>Donor:</strong> ${data.donorName}</li>
+          <li style="margin: 8px 0;"><strong>Request ID:</strong> ${data.requestId}</li>
+          <li style="margin: 8px 0;"><strong>Hospital:</strong> ${data.hospitalName}</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+        <p style="color: #9ca3af; font-size: 14px;">
+          BloodConnect Team ❤️
+        </p>
+      </div>
+    </div>
+  `,
 };
 
 export const sendEmail = async (emailData: EmailData): Promise<void> => {

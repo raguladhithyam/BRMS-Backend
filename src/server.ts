@@ -14,6 +14,7 @@ import { connectRedis } from './config/redis';
 import { setupSocketIO } from './config/socket';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { logHttp } from './middleware/logHttp';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -21,6 +22,8 @@ import requestRoutes from './routes/requests';
 import adminRoutes from './routes/admin';
 import studentRoutes from './routes/students';
 import notificationRoutes from './routes/notifications';
+import certificateRoutes from './routes/certificates';
+import logsRoutes from './routes/logs';
 
 // Load environment variables
 dotenv.config();
@@ -154,6 +157,7 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(logHttp);
 
 // Activity tracking middleware (must be before logging middleware)
 app.use((req, res, next) => {
@@ -223,6 +227,8 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/logs', logsRoutes);
 
 // Test route for debugging
 app.get('/api/test', (req, res) => {

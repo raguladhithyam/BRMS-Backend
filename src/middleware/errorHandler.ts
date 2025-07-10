@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger';
 
 interface CustomError extends Error {
   statusCode?: number;
@@ -14,8 +15,18 @@ export const errorHandler = (
   let error = { ...err };
   error.message = err.message;
 
-  // Log error
-  console.error(err);
+  // Log error to system logs
+  let user = 'system';
+  let role = 'admin'; // default to admin for system logs
+  if ((req as any).user) {
+    const u = (req as any).user;
+    const firstName = u.firstName || u.name || u.email || 'system';
+    role = u.role || '';
+    user = `${firstName} - ${role}`;
+  } else {
+    user = `system - ${role}`;
+  }
+  logger.error(`${req.method} ${req.originalUrl} - ${err.message}`, { user, role });
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
