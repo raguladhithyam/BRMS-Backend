@@ -24,6 +24,9 @@ export class CertificateService {
       throw new Error('Donor or request not found');
     }
 
+    // Explicitly generate certificate number
+    const certificateNumber = await Certificate.generateCertificateNumber();
+
     const certificate = await Certificate.create({
       donorId,
       requestId,
@@ -33,6 +36,7 @@ export class CertificateService {
       hospitalName: request.hospitalName,
       units: request.units,
       status: 'pending',
+      certificateNumber, // ensure not null
     });
 
     return certificate;
