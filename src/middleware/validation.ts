@@ -27,7 +27,7 @@ export const schemas = {
   register: Joi.object({
     name: Joi.string().min(2).max(100).required(),
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
+    password: Joi.string().min(6), // Make password optional
     role: Joi.string().valid('student').default('student'),
     bloodGroup: Joi.string().valid('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-').required(),
     rollNo: Joi.string().required(),

@@ -3,6 +3,8 @@ import jwt, { Secret } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { User, LoginHistory } from '../models/associations';
 import redisClient from '../config/redis';
+import { sendEmail } from '../services/emailService';
+import crypto from 'crypto';
 
 interface AuthRequest extends Request {
   user?: User;
@@ -33,17 +35,41 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // If password is not provided, generate a temporary one
+    let userPassword = password;
+    let isTempPassword = false;
+    if (!userPassword) {
+      userPassword = crypto.randomBytes(4).toString('hex'); // 8-char temp password
+      isTempPassword = true;
+    }
+
     // Create user
     const user = await User.create({
       name,
       email,
-      password,
+      password: userPassword,
       role: 'student',
       bloodGroup,
       rollNo,
       phone,
       availability: true,
     });
+
+    // Send welcome email with temp password if generated
+    if (isTempPassword) {
+      const loginUrl = process.env.FRONTEND_URL;
+      await sendEmail({
+        to: [email],
+        subject: 'Welcome to BloodConnect - Your Account Credentials',
+        template: 'studentWelcome',
+        data: {
+          name,
+          email,
+          tempPassword: userPassword,
+          loginUrl,
+        },
+      });
+    }
 
     // Generate token
     const token = generateToken(user.id);
