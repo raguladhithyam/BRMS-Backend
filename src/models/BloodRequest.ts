@@ -16,6 +16,7 @@ interface BloodRequestAttributes {
   status: 'pending' | 'approved' | 'rejected' | 'fulfilled';
   assignedDonorId?: string;
   rejectionReason?: string;
+  geotagPhoto?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -37,6 +38,7 @@ class BloodRequest extends Model<BloodRequestAttributes, BloodRequestCreationAtt
   public status!: 'pending' | 'approved' | 'rejected' | 'fulfilled';
   public assignedDonorId?: string;
   public rejectionReason?: string;
+  public geotagPhoto?: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -124,6 +126,7 @@ BloodRequest.init(
     assignedDonorId: {
       type: DataTypes.UUID,
       allowNull: true,
+      field: 'assigned_donor_id',
       references: {
         model: 'users',
         key: 'id',
@@ -132,6 +135,11 @@ BloodRequest.init(
     rejectionReason: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    geotagPhoto: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'geotagPhoto',
     },
   },
   {

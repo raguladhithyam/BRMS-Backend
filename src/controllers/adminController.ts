@@ -831,3 +831,378 @@ export const bulkUploadStudents = async (req: Request, res: Response): Promise<v
     });
   }
 };
+
+// Get all admins
+export const getAllAdmins = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const admins = await User.findAll({
+      where: { role: 'admin' },
+      attributes: ['id', 'name', 'email', 'phone', 'createdAt'],
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.json({
+      success: true,
+      data: admins,
+    });
+  } catch (error) {
+    console.error('Get all admins error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Create new admin
+export const createAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, email, phone, password } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'Name, email, phone, and password are required',
+      });
+      return;
+    }
+
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({
+      where: { email },
+    });
+
+    if (existingAdmin) {
+      res.status(400).json({
+        success: false,
+        message: 'Admin with this email already exists',
+      });
+      return;
+    }
+
+    // Create admin
+    const admin = await User.create({
+      name,
+      email,
+      phone,
+      password,
+      role: 'admin',
+    });
+
+    // Send email to all admins
+    try {
+      const allAdmins = await User.findAll({
+        where: { role: 'admin' },
+        attributes: ['email'],
+      });
+
+      const adminEmails = allAdmins.map(admin => admin.email);
+      
+      if (adminEmails.length > 0) {
+        await sendEmail({
+          to: adminEmails,
+          subject: 'New Admin Added to BRMS',
+          template: 'newAdminNotification',
+          data: {
+            newAdminName: name,
+            newAdminEmail: email,
+            newAdminPhone: phone,
+          },
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending admin notification email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role,
+      },
+      message: 'Admin created successfully',
+    });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Update assigned donor for a request
+export const updateAssignedDonor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { requestId } = req.params;
+    const { donorId } = req.body;
+
+    const bloodRequest = await BloodRequest.findByPk(requestId);
+
+    if (!bloodRequest) {
+      res.status(404).json({
+        success: false,
+        message: 'Blood request not found',
+      });
+      return;
+    }
+
+    if (bloodRequest.status !== 'approved') {
+      res.status(400).json({
+        success: false,
+        message: 'Can only assign donor to approved requests',
+      });
+      return;
+    }
+
+    // Check if donor exists and is available
+    if (donorId) {
+      const donor = await User.findOne({
+        where: { id: donorId, role: 'student' },
+      });
+
+      if (!donor) {
+        res.status(404).json({
+          success: false,
+          message: 'Donor not found',
+        });
+        return;
+      }
+
+      if (!donor.availability) {
+        res.status(400).json({
+          success: false,
+          message: 'Donor is not available for donation',
+        });
+        return;
+      }
+    }
+
+    // Update assigned donor
+    await bloodRequest.update({ assignedDonorId: donorId || null });
+
+    res.json({
+      success: true,
+      message: 'Assigned donor updated successfully',
+      data: bloodRequest,
+    });
+  } catch (error) {
+    console.error('Update assigned donor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Complete donation with geotag photo
+export const completeDonation = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { requestId } = req.params;
+    const { geotagPhoto } = req.body;
+
+    if (!geotagPhoto) {
+      res.status(400).json({
+        success: false,
+        message: 'Geotag photo is required for donation completion',
+      });
+      return;
+    }
+
+    const bloodRequest = await BloodRequest.findByPk(requestId, {
+      include: [
+        {
+          model: User,
+          as: 'assignedDonor',
+          attributes: ['id', 'name', 'email'],
+        },
+      ],
+    });
+
+    if (!bloodRequest) {
+      res.status(404).json({
+        success: false,
+        message: 'Blood request not found',
+      });
+      return;
+    }
+
+    if (bloodRequest.status !== 'approved' || !bloodRequest.assignedDonorId) {
+      res.status(400).json({
+        success: false,
+        message: 'Request must be approved and have an assigned donor',
+      });
+      return;
+    }
+
+    // Update request with geotag photo and mark as fulfilled
+    await bloodRequest.update({
+      geotagPhoto,
+      status: 'fulfilled',
+    });
+
+    // Create certificate request automatically
+    const certificateService = require('../services/certificateService');
+    await certificateService.createCertificateRequest(bloodRequest.assignedDonorId, requestId);
+
+    // Send notification to assigned donor
+    try {
+      await createNotification({
+        userId: bloodRequest.assignedDonorId,
+        type: 'donation_completed',
+        title: 'Donation Completed',
+        message: `Your donation for ${bloodRequest.requestorName} has been completed successfully.`,
+        metadata: { requestId: bloodRequest.id },
+      });
+    } catch (notificationError) {
+      console.error('Error creating notification:', notificationError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Donation completed successfully',
+      data: bloodRequest,
+    });
+  } catch (error) {
+    console.error('Complete donation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Approve and generate certificate in one step
+export const approveAndGenerateCertificate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { certificateId } = req.params;
+    const adminId = req.user!.id;
+
+    const certificateService = require('../services/certificateService');
+    
+    // First approve the certificate
+    const approvedCertificate = await certificateService.approveCertificate(certificateId, adminId);
+    
+    // Then generate the certificate
+    const { certificate, filePath } = await certificateService.generateCertificate(certificateId);
+
+    res.json({
+      success: true,
+      message: 'Certificate approved and generated successfully',
+      data: {
+        certificate,
+        downloadUrl: filePath,
+      },
+    });
+  } catch (error) {
+    console.error('Approve and generate certificate error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Update admin
+export const updateAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const admin = await User.findOne({
+      where: { id, role: 'admin' },
+    });
+
+    if (!admin) {
+      res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+      return;
+    }
+
+    // Check if email is being changed and if it's already taken
+    if (updateData.email && updateData.email !== admin.email) {
+      const existingUser = await User.findOne({ where: { email: updateData.email } });
+      if (existingUser) {
+        res.status(400).json({
+          success: false,
+          message: 'Email already in use',
+        });
+        return;
+      }
+    }
+
+    // Only update password if provided
+    if (!updateData.password) {
+      delete updateData.password;
+    }
+
+    const updatedAdmin = await admin.update(updateData);
+
+    res.json({
+      success: true,
+      data: {
+        id: updatedAdmin.id,
+        name: updatedAdmin.name,
+        email: updatedAdmin.email,
+        phone: updatedAdmin.phone,
+        role: updatedAdmin.role,
+      },
+      message: 'Admin updated successfully',
+    });
+  } catch (error) {
+    console.error('Update admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Delete admin
+export const deleteAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const admin = await User.findOne({
+      where: { id, role: 'admin' },
+    });
+
+    if (!admin) {
+      res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+      return;
+    }
+
+    // Prevent deleting the last admin
+    const adminCount = await User.count({ where: { role: 'admin' } });
+    if (adminCount <= 1) {
+      res.status(400).json({
+        success: false,
+        message: 'Cannot delete the last admin user',
+      });
+      return;
+    }
+
+    await admin.destroy();
+
+    res.json({
+      success: true,
+      message: 'Admin deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};

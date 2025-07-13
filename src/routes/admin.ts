@@ -12,6 +12,13 @@ import {
   updateStudent,
   deleteStudent,
   bulkUploadStudents,
+  getAllAdmins,
+  createAdmin,
+  updateAdmin,
+  deleteAdmin,
+  updateAssignedDonor,
+  completeDonation,
+  approveAndGenerateCertificate,
 } from '../controllers/adminController';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate, schemas } from '../middleware/validation';
@@ -40,5 +47,18 @@ router.post('/students', validate(schemas.createStudent), createStudent);
 router.put('/students/:id', updateStudent);
 router.delete('/students/:id', deleteStudent);
 router.post('/students/bulk-upload', upload.single('file'), bulkUploadStudents);
+
+// Admin management
+router.get('/admins', getAllAdmins);
+router.post('/admins', createAdmin);
+router.put('/admins/:id', updateAdmin);
+router.delete('/admins/:id', deleteAdmin);
+
+// Request management
+router.put('/requests/:requestId/assign-donor', updateAssignedDonor);
+router.post('/requests/:requestId/complete-donation', completeDonation);
+
+// Certificate management
+router.post('/certificates/:certificateId/approve-and-generate', approveAndGenerateCertificate);
 
 export default router;

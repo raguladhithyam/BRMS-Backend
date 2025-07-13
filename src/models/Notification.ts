@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 interface NotificationAttributes {
   id: string;
   userId: string;
-  type: 'request_created' | 'request_approved' | 'student_opted_in' | 'donor_assigned';
+  type: 'request_created' | 'request_approved' | 'student_opted_in' | 'donor_assigned' | 'donation_completed';
   title: string;
   message: string;
   read: boolean;
@@ -18,7 +18,7 @@ interface NotificationCreationAttributes extends Optional<NotificationAttributes
 class Notification extends Model<NotificationAttributes, NotificationCreationAttributes> implements NotificationAttributes {
   public id!: string;
   public userId!: string;
-  public type!: 'request_created' | 'request_approved' | 'student_opted_in' | 'donor_assigned';
+  public type!: 'request_created' | 'request_approved' | 'student_opted_in' | 'donor_assigned' | 'donation_completed';
   public title!: string;
   public message!: string;
   public read!: boolean;
@@ -43,7 +43,7 @@ Notification.init(
       },
     },
     type: {
-      type: DataTypes.ENUM('request_created', 'request_approved', 'student_opted_in', 'donor_assigned'),
+      type: DataTypes.ENUM('request_created', 'request_approved', 'student_opted_in', 'donor_assigned', 'donation_completed'),
       allowNull: false,
     },
     title: {

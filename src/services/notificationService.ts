@@ -2,7 +2,7 @@ import { Notification } from '../models/Notification';
 
 interface CreateNotificationData {
   userId: string;
-  type: 'request_created' | 'request_approved' | 'student_opted_in' | 'donor_assigned';
+  type: 'request_created' | 'request_approved' | 'student_opted_in' | 'donor_assigned' | 'donation_completed';
   title: string;
   message: string;
   metadata?: object;
