@@ -3,6 +3,7 @@ import { BloodRequest, User, StudentOptIn } from '../models/associations';
 import { emitToStudents, emitToUser } from '../config/socket';
 import { createNotification } from '../services/notificationService';
 import { sendEmail } from '../services/emailService';
+import { CertificateService } from '../services/certificateService';
 import { Op } from 'sequelize';
 import fs from 'fs';
 import csv from 'csv-parser';
@@ -1047,7 +1048,7 @@ export const completeDonation = async (req: Request, res: Response): Promise<voi
     });
 
     // Create certificate request automatically
-    const certificateService = require('../services/certificateService');
+    const certificateService = new CertificateService();
     await certificateService.createCertificateRequest(bloodRequest.assignedDonorId, requestId);
 
     // Send notification to assigned donor
@@ -1083,7 +1084,7 @@ export const approveAndGenerateCertificate = async (req: AuthRequest, res: Respo
     const { certificateId } = req.params;
     const adminId = req.user!.id;
 
-    const certificateService = require('../services/certificateService');
+    const certificateService = new CertificateService();
     
     // First approve the certificate
     const approvedCertificate = await certificateService.approveCertificate(certificateId, adminId);

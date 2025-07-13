@@ -103,12 +103,12 @@ export class CertificateService {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({
         size: 'A4',
-        layout: 'landscape',
+        layout: 'portrait',
         margins: {
-          top: 50,
-          bottom: 50,
-          left: 50,
-          right: 50,
+          top: 60,
+          bottom: 60,
+          left: 60,
+          right: 60,
         },
       });
 
@@ -118,113 +118,223 @@ export class CertificateService {
 
       doc.pipe(stream);
 
-      // Add background
-      doc.rect(0, 0, doc.page.width, doc.page.height)
-        .fill('#f8f9fa');
+      // Add elegant background gradient
+      const gradient = doc.linearGradient(0, 0, 0, doc.page.height);
+      gradient.stop(0, '#ffffff');
+      gradient.stop(1, '#f8f9fa');
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(gradient);
 
-      // Add border
+      // Add decorative border
       doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40)
-        .lineWidth(3)
-        .stroke('#dc3545');
+        .lineWidth(4)
+        .stroke('#dc2626');
 
-      // Add inner border
-      doc.rect(40, 40, doc.page.width - 80, doc.page.height - 80)
+      // Add inner decorative border
+      doc.rect(35, 35, doc.page.width - 70, doc.page.height - 70)
         .lineWidth(1)
-        .stroke('#6c757d');
+        .stroke('#e5e7eb');
 
-      // Header
-      doc.fontSize(36)
+      // Add corner decorations
+      const cornerSize = 20;
+      const positions = [
+        { x: 20, y: 20 },
+        { x: doc.page.width - 20 - cornerSize, y: 20 },
+        { x: 20, y: doc.page.height - 20 - cornerSize },
+        { x: doc.page.width - 20 - cornerSize, y: doc.page.height - 20 - cornerSize }
+      ];
+
+      positions.forEach(pos => {
+        doc.rect(pos.x, pos.y, cornerSize, cornerSize)
+          .lineWidth(2)
+          .stroke('#dc2626');
+      });
+
+      // Header with elegant styling
+      doc.fontSize(42)
         .font('Helvetica-Bold')
-        .fill('#dc3545')
-        .text('BLOOD DONATION CERTIFICATE', doc.page.width / 2, 80, {
+        .fill('#dc2626')
+        .text('BLOOD DONATION', doc.page.width / 2, 80, {
           align: 'center',
         });
 
-      // Certificate number
-      doc.fontSize(14)
+      doc.fontSize(32)
+        .font('Helvetica-Bold')
+        .fill('#dc2626')
+        .text('CERTIFICATE', doc.page.width / 2, 120, {
+          align: 'center',
+        });
+
+      // Certificate number with elegant styling
+      doc.fontSize(16)
         .font('Helvetica')
-        .fill('#6c757d')
-        .text(`Certificate No: ${certificate.certificateNumber}`, doc.page.width / 2, 140, {
+        .fill('#6b7280')
+        .text(`Certificate No: ${certificate.certificateNumber}`, doc.page.width / 2, 180, {
           align: 'center',
         });
 
       // Date
       doc.fontSize(14)
         .font('Helvetica')
-        .fill('#6c757d')
-        .text(`Date: ${new Date().toLocaleDateString()}`, doc.page.width / 2, 160, {
+        .fill('#6b7280')
+        .text(`Issued on: ${new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })}`, doc.page.width / 2, 200, {
           align: 'center',
         });
 
-      // Main content
-      const centerY = doc.page.height / 2;
-      const leftX = 100;
-      const rightX = doc.page.width - 100;
+      // Main content area with better spacing
+      const contentStartY = 280;
+      const sectionSpacing = 120;
 
-      // Left side - Donor Information
-      doc.fontSize(16)
+      // Donor Information Section
+      doc.fontSize(20)
         .font('Helvetica-Bold')
-        .fill('#212529')
-        .text('DONOR INFORMATION', leftX, centerY - 80);
+        .fill('#1f2937')
+        .text('DONOR INFORMATION', doc.page.width / 2, contentStartY, {
+          align: 'center',
+        });
 
-      doc.fontSize(12)
-        .font('Helvetica')
-        .fill('#495057');
+      // Add underline for section header
+      doc.moveTo(doc.page.width / 2 - 80, contentStartY + 10)
+        .lineTo(doc.page.width / 2 + 80, contentStartY + 10)
+        .lineWidth(2)
+        .stroke('#dc2626');
 
-      doc.text(`Name: ${certificate.donorName}`, leftX, centerY - 50);
-      doc.text(`Blood Group: ${certificate.bloodGroup}`, leftX, centerY - 30);
-      doc.text(`Roll No: ${certificate.donor.rollNo || 'N/A'}`, leftX, centerY - 10);
-      doc.text(`Email: ${certificate.donor.email}`, leftX, centerY + 10);
-
-      // Right side - Donation Details
-      doc.fontSize(16)
-        .font('Helvetica-Bold')
-        .fill('#212529')
-        .text('DONATION DETAILS', rightX, centerY - 80);
-
-      doc.fontSize(12)
-        .font('Helvetica')
-        .fill('#495057');
-
-      doc.text(`Hospital: ${certificate.hospitalName}`, rightX, centerY - 50);
-      doc.text(`Units Donated: ${certificate.units}`, rightX, centerY - 30);
-      doc.text(`Donation Date: ${certificate.donationDate.toLocaleDateString()}`, rightX, centerY - 10);
-      doc.text(`Request ID: ${certificate.requestId}`, rightX, centerY + 10);
-
-      // Bottom section
-      const bottomY = doc.page.height - 120;
-
-      // Appreciation message
+      const donorInfoY = contentStartY + 50;
       doc.fontSize(14)
         .font('Helvetica-Bold')
-        .fill('#28a745')
-        .text('Thank you for your life-saving contribution!', doc.page.width / 2, bottomY, {
+        .fill('#374151');
+
+      doc.text('Name:', 100, donorInfoY);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.donorName, 200, donorInfoY);
+
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151')
+        .text('Blood Group:', 100, donorInfoY + 30);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.bloodGroup, 200, donorInfoY + 30);
+
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151')
+        .text('Roll No:', 100, donorInfoY + 60);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.donor.rollNo || 'N/A', 200, donorInfoY + 60);
+
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151')
+        .text('Email:', 100, donorInfoY + 90);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.donor.email, 200, donorInfoY + 90);
+
+      // Donation Details Section
+      const donationInfoY = contentStartY + sectionSpacing + 50;
+      doc.fontSize(20)
+        .font('Helvetica-Bold')
+        .fill('#1f2937')
+        .text('DONATION DETAILS', doc.page.width / 2, donationInfoY, {
           align: 'center',
         });
 
+      // Add underline for section header
+      doc.moveTo(doc.page.width / 2 - 80, donationInfoY + 10)
+        .lineTo(doc.page.width / 2 + 80, donationInfoY + 10)
+        .lineWidth(2)
+        .stroke('#dc2626');
+
+      const donationDetailsY = donationInfoY + 50;
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151');
+
+      doc.text('Hospital:', 100, donationDetailsY);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.hospitalName, 200, donationDetailsY);
+
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151')
+        .text('Units Donated:', 100, donationDetailsY + 30);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(`${certificate.units} unit(s)`, 200, donationDetailsY + 30);
+
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151')
+        .text('Donation Date:', 100, donationDetailsY + 60);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.donationDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }), 200, donationDetailsY + 60);
+
+      doc.fontSize(14)
+        .font('Helvetica-Bold')
+        .fill('#374151')
+        .text('Request ID:', 100, donationDetailsY + 90);
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text(certificate.requestId, 200, donationDetailsY + 90);
+
+      // Appreciation message with better styling
+      const appreciationY = doc.page.height - 200;
+      doc.fontSize(18)
+        .font('Helvetica-Bold')
+        .fill('#059669')
+        .text('Thank you for your life-saving contribution!', doc.page.width / 2, appreciationY, {
+          align: 'center',
+        });
+
+      doc.fontSize(14)
+        .font('Helvetica')
+        .fill('#6b7280')
+        .text('Your blood donation has the potential to save up to 3 lives.', doc.page.width / 2, appreciationY + 30, {
+          align: 'center',
+        });
+
+      // Footer with better styling
       doc.fontSize(12)
         .font('Helvetica')
-        .fill('#6c757d')
-        .text('Your blood donation has the potential to save up to 3 lives.', doc.page.width / 2, bottomY + 25, {
-          align: 'center',
-        });
-
-      // Footer
-      doc.fontSize(10)
-        .font('Helvetica')
-        .fill('#6c757d')
-        .text('This certificate is issued by the Blood Request Management System', doc.page.width / 2, doc.page.height - 60, {
+        .fill('#9ca3af')
+        .text('This certificate is issued by the Blood Request Management System', doc.page.width / 2, doc.page.height - 80, {
           align: 'center',
         });
 
       doc.fontSize(10)
         .font('Helvetica')
-        .fill('#6c757d')
-        .text('Generated on: ' + new Date().toLocaleString(), doc.page.width / 2, doc.page.height - 40, {
+        .fill('#9ca3af')
+        .text('Generated on: ' + new Date().toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }), doc.page.width / 2, doc.page.height - 60, {
           align: 'center',
         });
 
-      // Add decorative elements
+      // Add elegant decorative elements
       this.addDecorativeElements(doc);
 
       doc.end();
@@ -238,19 +348,34 @@ export class CertificateService {
   }
 
   private addDecorativeElements(doc: PDFKit.PDFDocument): void {
-    // Add heart symbols
+    // Add elegant heart symbols
     const heartSymbol = '♥';
     const positions = [
-      { x: 80, y: 100 },
-      { x: doc.page.width - 80, y: 100 },
-      { x: 80, y: doc.page.height - 100 },
-      { x: doc.page.width - 80, y: doc.page.height - 100 },
+      { x: 100, y: 150 },
+      { x: doc.page.width - 100, y: 150 },
+      { x: 100, y: doc.page.height - 150 },
+      { x: doc.page.width - 100, y: doc.page.height - 150 },
     ];
 
     positions.forEach(pos => {
-      doc.fontSize(24)
-        .fill('#dc3545')
+      doc.fontSize(28)
+        .fill('#dc2626')
         .text(heartSymbol, pos.x, pos.y);
+    });
+
+    // Add subtle decorative lines
+    const linePositions = [
+      { x: 80, y: 250, width: 60 },
+      { x: doc.page.width - 140, y: 250, width: 60 },
+      { x: 80, y: doc.page.height - 250, width: 60 },
+      { x: doc.page.width - 140, y: doc.page.height - 250, width: 60 },
+    ];
+
+    linePositions.forEach(line => {
+      doc.moveTo(line.x, line.y)
+        .lineTo(line.x + line.width, line.y)
+        .lineWidth(1)
+        .stroke('#e5e7eb');
     });
   }
 
