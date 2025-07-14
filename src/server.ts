@@ -193,6 +193,7 @@ if (process.env.NODE_ENV === 'production') {
 
 // Serve uploads directory for photos and certificates
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Make io available to routes
 app.set('io', io);

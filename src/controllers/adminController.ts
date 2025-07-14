@@ -4,7 +4,7 @@ import { emitToStudents, emitToUser } from '../config/socket';
 import { createNotification } from '../services/notificationService';
 import { sendEmail } from '../services/emailService';
 import { CertificateService, generateDonationExcelReport } from '../services/certificateService';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import fs from 'fs';
 import csv from 'csv-parser';
 import sequelize from '../config/database';
@@ -512,16 +512,14 @@ export const getDonationStatistics = async (req: Request, res: Response): Promis
     // Total fulfilled donations
     const totalDonations = await BloodRequest.count({ where: { status: 'fulfilled' } });
     // Total unique donors (assignedDonorId on fulfilled requests)
-    const uniqueDonorIds = await BloodRequest.findAll({
-      where: {
-        status: 'fulfilled',
-        assignedDonorId: {
-          [Op.not]: '', // Exclude empty string
-        },
-      },
-      attributes: [[sequelize.fn('DISTINCT', sequelize.col('assigned_donor_id')), 'assignedDonorId']],
-      raw: true,
-    });
+    const uniqueDonorIds = await sequelize.query(
+      `SELECT DISTINCT assigned_donor_id as "assignedDonorId" 
+       FROM blood_requests 
+       WHERE status = 'fulfilled' 
+       AND assigned_donor_id IS NOT NULL 
+       AND assigned_donor_id != ''`,
+      { type: QueryTypes.SELECT }
+    );
     const totalUniqueDonors = uniqueDonorIds.length;
     // Total requests
     const totalRequests = await BloodRequest.count();
@@ -1123,6 +1121,17 @@ export const completeDonation = async (req: Request, res: Response): Promise<voi
       geotagPhoto,
       status: 'fulfilled',
     });
+
+    // Update donor's last donation date and availability
+    if (typeof bloodRequest.assignedDonorId === 'string') {
+      const donor = await User.findByPk(bloodRequest.assignedDonorId);
+      if (donor) {
+        await donor.update({
+          lastDonationDate: new Date(),
+          availability: false, // Set to false immediately after donation
+        });
+      }
+    }
 
     // Create certificate request automatically
     const certificateService = new CertificateService();

@@ -24,5 +24,6 @@ router.get('/admin/pending', authenticate, authorize('admin'), getPendingCertifi
 router.get('/admin/all', authenticate, authorize('admin'), getAllCertificates);
 router.post('/admin/:id/approve', authenticate, authorize('admin'), approveCertificate);
 router.post('/admin/:id/generate', authenticate, authorize('admin'), generateCertificate);
+router.get('/admin/:id/download', authenticate, authorize('admin'), downloadCertificate);
 
 export default router; 

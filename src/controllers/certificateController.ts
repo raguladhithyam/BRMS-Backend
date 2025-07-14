@@ -193,9 +193,17 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
     // Construct file path
     const fileName = path.basename(certificate.certificateUrl);
     const filePath = path.join(__dirname, '../../uploads/certificates', fileName);
+    
+    // Alternative: if certificateUrl is a full path, use it directly
+    let finalFilePath = filePath;
+    if (certificate.certificateUrl.startsWith('/uploads/')) {
+      // Remove the /uploads prefix and construct the full path
+      const relativePath = certificate.certificateUrl.replace('/uploads/', '');
+      finalFilePath = path.join(__dirname, '../../uploads', relativePath);
+    }
 
     // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    if (!fs.existsSync(finalFilePath)) {
       return res.status(404).json({
         success: false,
         message: 'Certificate file not found on server'
@@ -207,7 +215,7 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename=\"certificate-${certificate.certificateNumber}.pdf\"`);
 
     // Stream the file
-    const fileStream = fs.createReadStream(filePath);
+    const fileStream = fs.createReadStream(finalFilePath);
     fileStream.pipe(res);
     return;
   } catch (error: any) {
