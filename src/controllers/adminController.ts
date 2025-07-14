@@ -519,7 +519,7 @@ export const getDonationStatistics = async (req: Request, res: Response): Promis
           [Op.not]: '', // Exclude empty string
         },
       },
-      attributes: [[sequelize.fn('DISTINCT', sequelize.col('assignedDonorId')), 'assignedDonorId']],
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('assigned_donor_id')), 'assignedDonorId']],
       raw: true,
     });
     const totalUniqueDonors = uniqueDonorIds.length;
