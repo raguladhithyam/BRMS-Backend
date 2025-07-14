@@ -517,7 +517,8 @@ export const getDonationStatistics = async (req: Request, res: Response): Promis
        FROM blood_requests 
        WHERE status = 'fulfilled' 
        AND assigned_donor_id IS NOT NULL 
-       AND assigned_donor_id != ''`,
+       AND assigned_donor_id::text != ''
+       AND assigned_donor_id::text != 'null'`,
       { type: QueryTypes.SELECT }
     );
     const totalUniqueDonors = uniqueDonorIds.length;
