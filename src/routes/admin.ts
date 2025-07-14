@@ -19,6 +19,8 @@ import {
   updateAssignedDonor,
   completeDonation,
   approveAndGenerateCertificate,
+  getDonationStatistics,
+  downloadDonationReport,
 } from '../controllers/adminController';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate, schemas } from '../middleware/validation';
@@ -33,6 +35,8 @@ router.use(authenticate, authorize('admin'));
 // Dashboard routes
 router.get('/dashboard/stats', getDashboardStats);
 router.get('/dashboard/blood-groups', getBloodGroupStats);
+router.get('/dashboard/donation-stats', getDonationStatistics);
+router.get('/dashboard/donation-report', downloadDonationReport);
 
 // Blood request management
 router.get('/requests', getAllRequests);

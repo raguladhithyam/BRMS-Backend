@@ -3,10 +3,12 @@ import { BloodRequest, User, StudentOptIn } from '../models/associations';
 import { emitToStudents, emitToUser } from '../config/socket';
 import { createNotification } from '../services/notificationService';
 import { sendEmail } from '../services/emailService';
-import { CertificateService } from '../services/certificateService';
+import { CertificateService, generateDonationExcelReport } from '../services/certificateService';
 import { Op } from 'sequelize';
 import fs from 'fs';
 import csv from 'csv-parser';
+import sequelize from '../config/database';
+import path from 'path';
 
 interface AuthRequest extends Request {
   user?: User;
@@ -501,6 +503,74 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+    });
+  }
+};
+
+export const getDonationStatistics = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Total fulfilled donations
+    const totalDonations = await BloodRequest.count({ where: { status: 'fulfilled' } });
+    // Total unique donors (assignedDonorId on fulfilled requests)
+    const uniqueDonorIds = await BloodRequest.findAll({
+      where: {
+        status: 'fulfilled',
+        assignedDonorId: {
+          [Op.not]: '', // Exclude empty string
+        },
+      },
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('assignedDonorId')), 'assignedDonorId']],
+      raw: true,
+    });
+    const totalUniqueDonors = uniqueDonorIds.length;
+    // Total requests
+    const totalRequests = await BloodRequest.count();
+    // Total units donated (sum of units for fulfilled requests)
+    const totalUnitsDonatedResult = await BloodRequest.findOne({
+      where: { status: 'fulfilled' },
+      attributes: [[sequelize.fn('SUM', sequelize.col('units')), 'totalUnits']],
+      raw: true,
+    });
+    // The result is an object like { totalUnits: '5' } or { totalUnits: null }
+    const totalUnitsDonated = Number((totalUnitsDonatedResult as any)?.totalUnits || 0);
+
+    res.json({
+      success: true,
+      data: {
+        totalDonations,
+        totalUniqueDonors,
+        totalRequests,
+        totalUnitsDonated,
+      },
+    });
+  } catch (error) {
+    console.error('Get donation statistics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+export const downloadDonationReport = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filePath = await generateDonationExcelReport();
+    res.download(filePath, 'donation-report.xlsx', (err) => {
+      if (err) {
+        console.error('Error sending report:', err);
+      }
+      // Delete the file after sending
+      fs.unlink(filePath, (unlinkErr) => {
+        if (unlinkErr) {
+          console.error('Error deleting report file:', unlinkErr);
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Download donation report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate report',
     });
   }
 };
@@ -1033,6 +1103,13 @@ export const completeDonation = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    if (bloodRequest.status === 'fulfilled') {
+      res.status(400).json({
+        success: false,
+        message: 'Donation for this request has already been completed',
+      });
+      return;
+    }
     if (bloodRequest.status !== 'approved' || !bloodRequest.assignedDonorId) {
       res.status(400).json({
         success: false,
@@ -1049,19 +1126,20 @@ export const completeDonation = async (req: Request, res: Response): Promise<voi
 
     // Create certificate request automatically
     const certificateService = new CertificateService();
-    await certificateService.createCertificateRequest(bloodRequest.assignedDonorId, requestId);
-
-    // Send notification to assigned donor
-    try {
-      await createNotification({
-        userId: bloodRequest.assignedDonorId,
-        type: 'donation_completed',
-        title: 'Donation Completed',
-        message: `Your donation for ${bloodRequest.requestorName} has been completed successfully.`,
-        metadata: { requestId: bloodRequest.id },
-      });
-    } catch (notificationError) {
-      console.error('Error creating notification:', notificationError);
+    if (typeof bloodRequest.assignedDonorId === 'string') {
+      await certificateService.createCertificateRequest(bloodRequest.assignedDonorId, requestId);
+      // Send notification to assigned donor
+      try {
+        await createNotification({
+          userId: bloodRequest.assignedDonorId,
+          type: 'donation_completed',
+          title: 'Donation Completed',
+          message: `Your donation for ${bloodRequest.requestorName} has been completed successfully.`,
+          metadata: { requestId: bloodRequest.id },
+        });
+      } catch (notificationError) {
+        console.error('Error creating notification:', notificationError);
+      }
     }
 
     res.json({

@@ -191,7 +191,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
-// Static files
+// Serve uploads directory for photos and certificates
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Make io available to routes

@@ -5,6 +5,7 @@ import { Certificate } from '../models/Certificate';
 import { User } from '../models/User';
 import { BloodRequest } from '../models/BloodRequest';
 import { sendEmail } from './emailService';
+import ExcelJS from 'exceljs';
 
 export class CertificateService {
   private static uploadsDir = path.join(__dirname, '../../uploads/certificates');
@@ -455,3 +456,60 @@ export class CertificateService {
 }
 
 export const certificateService = new CertificateService(); 
+
+export async function generateDonationExcelReport(): Promise<string> {
+  // Fetch all fulfilled blood requests with donor info
+  const requests = await BloodRequest.findAll({
+    where: { status: 'fulfilled' },
+    include: [
+      {
+        model: User,
+        as: 'assignedDonor',
+        attributes: ['name', 'email'],
+      },
+    ],
+    order: [['updatedAt', 'DESC']],
+  });
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Donations');
+
+  worksheet.columns = [
+    { header: 'Requestor Name', key: 'requestorName', width: 20 },
+    { header: 'Email', key: 'email', width: 25 },
+    { header: 'Phone', key: 'phone', width: 15 },
+    { header: 'Blood Group', key: 'bloodGroup', width: 10 },
+    { header: 'Units', key: 'units', width: 8 },
+    { header: 'Date', key: 'dateTime', width: 18 },
+    { header: 'Hospital', key: 'hospitalName', width: 20 },
+    { header: 'Location', key: 'location', width: 25 },
+    { header: 'Donor Name', key: 'donorName', width: 20 },
+    { header: 'Donor Email', key: 'donorEmail', width: 25 },
+    { header: 'Date Completed', key: 'updatedAt', width: 18 },
+  ];
+
+  requests.forEach((req: any) => {
+    worksheet.addRow({
+      requestorName: req.requestorName,
+      email: req.email,
+      phone: req.phone,
+      bloodGroup: req.bloodGroup,
+      units: req.units,
+      dateTime: req.dateTime ? new Date(req.dateTime).toLocaleString() : '',
+      hospitalName: req.hospitalName,
+      location: req.location,
+      donorName: req.assignedDonor?.name || '',
+      donorEmail: req.assignedDonor?.email || '',
+      updatedAt: req.updatedAt ? new Date(req.updatedAt).toLocaleString() : '',
+    });
+  });
+
+  // Ensure the reports directory exists
+  const reportsDir = path.join(__dirname, '../../uploads/reports');
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+  const filePath = path.join(reportsDir, `donation-report-${Date.now()}.xlsx`);
+  await workbook.xlsx.writeFile(filePath);
+  return filePath;
+} 
