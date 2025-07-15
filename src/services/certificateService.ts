@@ -7,6 +7,8 @@ import { BloodRequest } from '../models/BloodRequest';
 import { sendEmail } from './emailService';
 import ExcelJS from 'exceljs';
 
+const montserratFontPath = path.join(__dirname, '../fonts/Montserrat_wght.ttf');
+
 export class CertificateService {
   private static uploadsDir = path.join(__dirname, '../../uploads/certificates');
 
@@ -102,249 +104,101 @@ export class CertificateService {
 
   private async generatePDF(certificate: Certificate & { donor: User; request: BloodRequest }): Promise<string> {
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({
-        size: 'A4',
-        layout: 'portrait',
-        margins: {
-          top: 60,
-          bottom: 60,
-          left: 60,
-          right: 60,
-        },
-      });
-
-      const fileName = `certificate-${certificate.certificateNumber}.pdf`;
-      const filePath = path.join(CertificateService.uploadsDir, fileName);
-      const stream = fs.createWriteStream(filePath);
-
-      doc.pipe(stream);
-
-      // Add elegant background gradient
-      const gradient = doc.linearGradient(0, 0, 0, doc.page.height);
-      gradient.stop(0, '#ffffff');
-      gradient.stop(1, '#f8f9fa');
-      doc.rect(0, 0, doc.page.width, doc.page.height).fill(gradient);
-
-      // Add decorative border
-      doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40)
-        .lineWidth(4)
-        .stroke('#dc2626');
-
-      // Add inner decorative border
-      doc.rect(35, 35, doc.page.width - 70, doc.page.height - 70)
-        .lineWidth(1)
-        .stroke('#e5e7eb');
-
-      // Add corner decorations
-      const cornerSize = 20;
-      const positions = [
-        { x: 20, y: 20 },
-        { x: doc.page.width - 20 - cornerSize, y: 20 },
-        { x: 20, y: doc.page.height - 20 - cornerSize },
-        { x: doc.page.width - 20 - cornerSize, y: doc.page.height - 20 - cornerSize }
-      ];
-
-      positions.forEach(pos => {
-        doc.rect(pos.x, pos.y, cornerSize, cornerSize)
-          .lineWidth(2)
-          .stroke('#dc2626');
-      });
-
-      // Header with elegant styling
-      doc.fontSize(42)
-        .font('Helvetica-Bold')
-        .fill('#dc2626')
-        .text('BLOOD DONATION', doc.page.width / 2, 80, {
-          align: 'center',
+      try {
+        const doc = new PDFDocument({
+          size: 'A4',
+          layout: 'landscape',
+          margins: {
+            top: 60,
+            bottom: 60,
+            left: 60,
+            right: 60,
+          },
         });
 
-      doc.fontSize(32)
-        .font('Helvetica-Bold')
-        .fill('#dc2626')
-        .text('CERTIFICATE', doc.page.width / 2, 120, {
-          align: 'center',
+        // Register Montserrat and Poppins fonts
+        const montserratFontPath = path.join(__dirname, '../fonts/Montserrat_wght.ttf');
+        const poppinsFontPath = path.join(__dirname, '../fonts/Poppins-Regular.ttf');
+        doc.registerFont('Montserrat', montserratFontPath);
+        doc.registerFont('Montserrat-Bold', montserratFontPath);
+        doc.registerFont('Poppins', poppinsFontPath);
+        doc.registerFont('Poppins-Bold', poppinsFontPath);
+
+        const fileName = `certificate-${certificate.certificateNumber}.pdf`;
+        const filePath = path.join(CertificateService.uploadsDir, fileName);
+        const stream = fs.createWriteStream(filePath);
+        doc.pipe(stream);
+
+        // Creative multi-color header with gradient effect
+        const gradient = doc.linearGradient(0, 0, doc.page.width, 0);
+        gradient.stop(0, '#dc2626').stop(0.5, '#f59e42').stop(1, '#059669');
+        doc.rect(0, 0, doc.page.width, 80).fill(gradient);
+        doc.fillColor('#fff')
+          .font('Montserrat-Bold')
+          .fontSize(36)
+          .text('Blood Donation Certificate', 0, 30, { align: 'center', width: doc.page.width });
+
+        // Decorative colored circles
+        doc.save();
+        doc.circle(80, 60, 30).fill('#f59e42');
+        doc.circle(doc.page.width - 80, 60, 30).fill('#059669');
+        doc.restore();
+
+        // Certificate Info Box
+        doc.roundedRect(60, 110, doc.page.width - 120, 200, 20).fill('#f3f4f6');
+        doc.fillColor('#1e293b')
+          .font('Montserrat-Bold')
+          .fontSize(22)
+          .text('Certificate Details', 80, 130);
+        doc.font('Poppins')
+          .fontSize(14)
+          .fillColor('#374151')
+          .text(`Certificate No: ${certificate.certificateNumber}`, 80, 165)
+          .text(`Issued on: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`);
+
+        // Donor Info
+        doc.font('Montserrat-Bold').fontSize(18).fillColor('#dc2626').text('Donor Information', 80, 220);
+        doc.font('Poppins').fontSize(14).fillColor('#334155');
+        doc.text(`Name: ${certificate.donorName}`, 80, 250)
+          .text(`Blood Group: ${certificate.bloodGroup}`)
+          .text(`Roll No: ${certificate.donor.rollNo || 'N/A'}`)
+          .text(`Email: ${certificate.donor.email}`);
+
+        // Donation Details
+        doc.font('Montserrat-Bold').fontSize(18).fillColor('#059669').text('Donation Details', 400, 220);
+        doc.font('Poppins').fontSize(14).fillColor('#334155');
+        doc.text(`Hospital: ${certificate.hospitalName}`, 400, 250)
+          .text(`Units Donated: ${certificate.units} unit(s)`)
+          .text(`Donation Date: ${certificate.donationDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`)
+          .text(`Request ID: ${certificate.requestId}`);
+
+        // Thank you message with accent color
+        doc.font('Montserrat-Bold').fontSize(20).fillColor('#f59e42')
+          .text('Thank you for your life-saving contribution!', 0, 370, { align: 'center', width: doc.page.width });
+        doc.font('Poppins').fontSize(12).fillColor('#64748b')
+          .text('Your blood donation has the potential to save up to 3 lives.', 0, 400, { align: 'center', width: doc.page.width });
+
+        // Decorative bottom bar
+        doc.save();
+        doc.rect(0, doc.page.height - 40, doc.page.width, 40).fill('#dc2626');
+        doc.restore();
+
+        // Footer with generation date and time
+        doc.font('Poppins').fontSize(10).fillColor('#fff')
+          .text('This certificate is issued by the Blood Request Management System', 0, doc.page.height - 35, { align: 'center', width: doc.page.width });
+        doc.font('Poppins').fontSize(9).fillColor('#fff')
+          .text('Generated on: ' + new Date().toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), 0, doc.page.height - 20, { align: 'center', width: doc.page.width });
+
+        doc.end();
+        stream.on('finish', () => resolve(filePath));
+        stream.on('error', (err) => {
+          console.error('PDFKit file stream error:', err);
+          reject(new Error('Failed to write PDF file: ' + err));
         });
-
-      // Certificate number with elegant styling
-      doc.fontSize(16)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(`Certificate No: ${certificate.certificateNumber}`, doc.page.width / 2, 180, {
-          align: 'center',
-        });
-
-      // Date
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(`Issued on: ${new Date().toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}`, doc.page.width / 2, 200, {
-          align: 'center',
-        });
-
-      // Main content area with better spacing
-      const contentStartY = 280;
-      const sectionSpacing = 120;
-
-      // Donor Information Section
-      doc.fontSize(20)
-        .font('Helvetica-Bold')
-        .fill('#1f2937')
-        .text('DONOR INFORMATION', doc.page.width / 2, contentStartY, {
-          align: 'center',
-        });
-
-      // Add underline for section header
-      doc.moveTo(doc.page.width / 2 - 80, contentStartY + 10)
-        .lineTo(doc.page.width / 2 + 80, contentStartY + 10)
-        .lineWidth(2)
-        .stroke('#dc2626');
-
-      const donorInfoY = contentStartY + 50;
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151');
-
-      doc.text('Name:', 100, donorInfoY);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.donorName, 200, donorInfoY);
-
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151')
-        .text('Blood Group:', 100, donorInfoY + 30);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.bloodGroup, 200, donorInfoY + 30);
-
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151')
-        .text('Roll No:', 100, donorInfoY + 60);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.donor.rollNo || 'N/A', 200, donorInfoY + 60);
-
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151')
-        .text('Email:', 100, donorInfoY + 90);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.donor.email, 200, donorInfoY + 90);
-
-      // Donation Details Section
-      const donationInfoY = contentStartY + sectionSpacing + 50;
-      doc.fontSize(20)
-        .font('Helvetica-Bold')
-        .fill('#1f2937')
-        .text('DONATION DETAILS', doc.page.width / 2, donationInfoY, {
-          align: 'center',
-        });
-
-      // Add underline for section header
-      doc.moveTo(doc.page.width / 2 - 80, donationInfoY + 10)
-        .lineTo(doc.page.width / 2 + 80, donationInfoY + 10)
-        .lineWidth(2)
-        .stroke('#dc2626');
-
-      const donationDetailsY = donationInfoY + 50;
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151');
-
-      doc.text('Hospital:', 100, donationDetailsY);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.hospitalName, 200, donationDetailsY);
-
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151')
-        .text('Units Donated:', 100, donationDetailsY + 30);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(`${certificate.units} unit(s)`, 200, donationDetailsY + 30);
-
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151')
-        .text('Donation Date:', 100, donationDetailsY + 60);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.donationDate.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        }), 200, donationDetailsY + 60);
-
-      doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fill('#374151')
-        .text('Request ID:', 100, donationDetailsY + 90);
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text(certificate.requestId, 200, donationDetailsY + 90);
-
-      // Appreciation message with better styling
-      const appreciationY = doc.page.height - 200;
-      doc.fontSize(18)
-        .font('Helvetica-Bold')
-        .fill('#059669')
-        .text('Thank you for your life-saving contribution!', doc.page.width / 2, appreciationY, {
-          align: 'center',
-        });
-
-      doc.fontSize(14)
-        .font('Helvetica')
-        .fill('#6b7280')
-        .text('Your blood donation has the potential to save up to 3 lives.', doc.page.width / 2, appreciationY + 30, {
-          align: 'center',
-        });
-
-      // Footer with better styling
-      doc.fontSize(12)
-        .font('Helvetica')
-        .fill('#9ca3af')
-        .text('This certificate is issued by the Blood Request Management System', doc.page.width / 2, doc.page.height - 80, {
-          align: 'center',
-        });
-
-      doc.fontSize(10)
-        .font('Helvetica')
-        .fill('#9ca3af')
-        .text('Generated on: ' + new Date().toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }), doc.page.width / 2, doc.page.height - 60, {
-          align: 'center',
-        });
-
-      // Add elegant decorative elements
-      this.addDecorativeElements(doc);
-
-      doc.end();
-
-      stream.on('finish', () => {
-        resolve(`/uploads/certificates/${fileName}`);
-      });
-
-      stream.on('error', reject);
+      } catch (err) {
+        console.error('PDFKit general error:', err);
+        reject(new Error('PDFKit error: ' + err));
+      }
     });
   }
 

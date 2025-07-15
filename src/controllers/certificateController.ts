@@ -183,26 +183,28 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (!certificate.certificateUrl) {
-      return res.status(404).json({
-        success: false,
-        message: 'Certificate file not found'
-      });
-    }
-
     // Construct file path
-    const fileName = path.basename(certificate.certificateUrl);
-    const filePath = path.join(__dirname, '../../uploads/certificates', fileName);
-    
-    // Alternative: if certificateUrl is a full path, use it directly
+    let fileName = certificate.certificateUrl ? path.basename(certificate.certificateUrl) : '';
+    let filePath = path.join(__dirname, '../../uploads/certificates', fileName);
     let finalFilePath = filePath;
-    if (certificate.certificateUrl.startsWith('/uploads/')) {
-      // Remove the /uploads prefix and construct the full path
+    if (certificate.certificateUrl && certificate.certificateUrl.startsWith('/uploads/')) {
       const relativePath = certificate.certificateUrl.replace('/uploads/', '');
       finalFilePath = path.join(__dirname, '../../uploads', relativePath);
     }
 
-    // Check if file exists
+    // If file does not exist, try to generate it
+    if (!fs.existsSync(finalFilePath)) {
+      try {
+        const { filePath: generatedPath } = await certificateService.generateCertificate(certificate.id);
+        finalFilePath = generatedPath;
+      } catch (err) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to generate certificate PDF',
+        });
+      }
+    }
+
     if (!fs.existsSync(finalFilePath)) {
       return res.status(404).json({
         success: false,
@@ -210,19 +212,69 @@ export const downloadCertificate = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Set headers for file download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=\"certificate-${certificate.certificateNumber}.pdf\"`);
+    res.setHeader('Content-Disposition', `attachment; filename="certificate-${certificate.certificateNumber}.pdf"`);
 
-    // Stream the file
     const fileStream = fs.createReadStream(finalFilePath);
     fileStream.pipe(res);
     return;
   } catch (error: any) {
     console.error('Download certificate error:', error);
+    if (error && error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to download certificate'
+    });
+  }
+};
+
+// Delete certificate request
+export const deleteCertificateRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    const certificate = await Certificate.findByPk(id);
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Certificate request not found',
+      });
+    }
+
+    // Only allow owner (student) or admin to delete
+    if (userRole !== 'admin' && certificate.donorId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete this certificate request',
+      });
+    }
+
+    // Delete PDF file if it exists
+    if (certificate.certificateUrl) {
+      const fileName = path.basename(certificate.certificateUrl);
+      const filePath = path.join(__dirname, '../../uploads/certificates', fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await certificate.destroy();
+    return res.json({
+      success: true,
+      message: 'Certificate request deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Delete certificate request error:', error);
+    if (error && error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete certificate request',
     });
   }
 };

@@ -141,7 +141,7 @@ app.use(cors({
     const allowedOrigins = [
       process.env.FRONTEND_URL || 'http://localhost:5173',
       'http://localhost:3000',
-      'http://127.0.0.1:5173',
+      'http://localhost:5173',
       'http://127.0.0.1:3000'
     ];
     
@@ -154,10 +154,17 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
+  // origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
+
+const uploadsPath = path.resolve(__dirname, '../uploads');
+app.use('/api/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(uploadsPath));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -192,8 +199,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Serve uploads directory for photos and certificates
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadsPath));
+app.use('/api/uploads', express.static(uploadsPath));
 
 // Make io available to routes
 app.set('io', io);

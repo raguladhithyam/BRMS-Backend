@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { BloodRequest, User, StudentOptIn } from '../models/associations';
+import { BloodRequest, User, StudentOptIn, Certificate, Notification } from '../models/associations';
 import { emitToStudents, emitToUser } from '../config/socket';
 import { createNotification } from '../services/notificationService';
 import { sendEmail } from '../services/emailService';
@@ -169,15 +169,16 @@ export const approveRequest = async (req: Request, res: Response): Promise<void>
     // Filter students who are actually eligible (3 months since last donation)
     const eligibleStudents = matchingStudents.filter(student => student.isAvailableForDonation());
 
-    // Notify eligible students
+    // Notify eligible students (real-time)
     for (const student of eligibleStudents) {
-      emitToUser(io, student.id, 'request_approved', {
-        message: `New ${bloodRequest.bloodGroup} blood request approved`,
-        bloodGroup: bloodRequest.bloodGroup,
-        urgency: bloodRequest.urgency,
-        requestId: bloodRequest.id,
-      });
-
+      if (io) {
+        emitToUser(io, student.id, 'request_approved', {
+          message: `New ${bloodRequest.bloodGroup} blood request approved`,
+          bloodGroup: bloodRequest.bloodGroup,
+          urgency: bloodRequest.urgency,
+          requestId: bloodRequest.id,
+        });
+      }
       await createNotification({
         userId: student.id,
         type: 'request_approved',
@@ -1031,8 +1032,9 @@ export const updateAssignedDonor = async (req: Request, res: Response): Promise<
     }
 
     // Check if donor exists and is available
+    let donor = null;
     if (donorId) {
-      const donor = await User.findOne({
+      donor = await User.findOne({
         where: { id: donorId, role: 'student' },
       });
 
@@ -1054,7 +1056,55 @@ export const updateAssignedDonor = async (req: Request, res: Response): Promise<
     }
 
     // Update assigned donor
+    const oldDonorId = bloodRequest.assignedDonorId;
     await bloodRequest.update({ assignedDonorId: donorId || null });
+
+    // If changing donor, notify the old donor
+    if (donorId && donor && oldDonorId && oldDonorId !== donorId) {
+      try {
+        const oldDonor = await User.findByPk(oldDonorId);
+        if (oldDonor) {
+          await sendEmail({
+            to: [oldDonor.email],
+            subject: 'You have been unassigned from a Blood Request',
+            template: 'donorUnassigned',
+            data: {
+              donorName: oldDonor.name,
+              requestorName: bloodRequest.requestorName,
+              bloodGroup: bloodRequest.bloodGroup,
+              hospitalName: bloodRequest.hospitalName,
+              dateTime: bloodRequest.dateTime,
+            },
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send unassignment email to old donor:', emailError);
+      }
+    }
+
+    // Send email to the student (requestor) about the donor assignment/change
+    if (donorId && donor) {
+      try {
+        await sendEmail({
+          to: [bloodRequest.email],
+          subject: 'Assigned Donor Updated for Your Blood Request',
+          template: 'donorChanged',
+          data: {
+            requestorName: bloodRequest.requestorName,
+            donorName: donor.name,
+            donorEmail: donor.email,
+            donorPhone: donor.phone,
+            bloodGroup: bloodRequest.bloodGroup,
+            units: bloodRequest.units,
+            hospitalName: bloodRequest.hospitalName,
+            location: bloodRequest.location,
+            dateTime: bloodRequest.dateTime,
+          },
+        });
+      } catch (emailError) {
+        console.error('Failed to send donor change email to requestor:', emailError);
+      }
+    }
 
     res.json({
       success: true,
@@ -1073,8 +1123,15 @@ export const updateAssignedDonor = async (req: Request, res: Response): Promise<
 // Complete donation with geotag photo
 export const completeDonation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { requestId } = req.params;
-    const { geotagPhoto } = req.body;
+    const requestId = req.params.requestId || req.params.id;
+    const userId = (req as any).user?.id;
+    // Handle geotagPhoto as a file upload
+    let geotagPhoto: string | undefined = undefined;
+    if (req.file) {
+      geotagPhoto = req.file.filename;
+    } else if (req.body.geotagPhoto) {
+      geotagPhoto = req.body.geotagPhoto;
+    }
 
     if (!geotagPhoto) {
       res.status(400).json({
@@ -1102,17 +1159,29 @@ export const completeDonation = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    if (bloodRequest.status === 'fulfilled') {
-      res.status(400).json({
+    if (!bloodRequest.assignedDonorId || bloodRequest.assignedDonorId !== userId) {
+      res.status(403).json({
         success: false,
-        message: 'Donation for this request has already been completed',
+        message: 'You are not the assigned donor for this request',
       });
       return;
     }
-    if (bloodRequest.status !== 'approved' || !bloodRequest.assignedDonorId) {
+
+    if (bloodRequest.status === 'fulfilled') {
+      // Allow updating geotagPhoto if already fulfilled
+      await bloodRequest.update({ geotagPhoto });
+      res.json({
+        success: true,
+        message: 'Geotag photo uploaded successfully',
+        data: bloodRequest,
+      });
+      return;
+    }
+
+    if (bloodRequest.status !== 'approved') {
       res.status(400).json({
         success: false,
-        message: 'Request must be approved and have an assigned donor',
+        message: 'Request must be approved before donation completion',
       });
       return;
     }
@@ -1293,5 +1362,43 @@ export const deleteAdmin = async (req: Request, res: Response): Promise<void> =>
       success: false,
       message: 'Internal server error',
     });
+  }
+};
+
+// Delete a blood request
+export const deleteRequest = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const bloodRequest = await BloodRequest.findByPk(id);
+    if (!bloodRequest) {
+      res.status(404).json({
+        success: false,
+        message: 'Blood request not found',
+      });
+      return;
+    }
+
+    // Delete related StudentOptIn records
+    await StudentOptIn.destroy({ where: { requestId: id } });
+    // Delete related Certificate records
+    await Certificate.destroy({ where: { requestId: id } });
+    // Optionally: Delete related notifications (if you want to clean up)
+    // await Notification.destroy({ where: { metadata: { requestId: id } } });
+
+    // Delete the blood request itself
+    await bloodRequest.destroy();
+
+    res.json({
+      success: true,
+      message: 'Blood request deleted successfully',
+    });
+    return;
+  } catch (error) {
+    console.error('Delete blood request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+    return;
   }
 };

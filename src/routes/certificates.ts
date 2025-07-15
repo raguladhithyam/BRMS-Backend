@@ -8,6 +8,7 @@ import {
   generateCertificate,
   downloadCertificate,
   getCertificateById,
+  deleteCertificateRequest,
 } from '../controllers/certificateController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -18,6 +19,9 @@ router.post('/request', authenticate, authorize('student'), createCertificateReq
 router.get('/my-certificates', authenticate, authorize('student'), getDonorCertificates);
 router.get('/:id', authenticate, getCertificateById);
 router.get('/:id/download', authenticate, downloadCertificate);
+
+// Add DELETE endpoint for certificate request
+router.delete('/:id', authenticate, deleteCertificateRequest);
 
 // Admin routes
 router.get('/admin/pending', authenticate, authorize('admin'), getPendingCertificates);
