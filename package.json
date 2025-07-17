@@ -5,7 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",
-    "build": "tsc",
+    "build": "tsc && npm run copy-fonts",
+    "copy-fonts": "cp -r src/fonts dist/fonts",
     "start": "node dist/server.js",
     "test": "jest",
     "migrate": "npx sequelize-cli db:migrate",
