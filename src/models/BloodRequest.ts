@@ -13,7 +13,7 @@ interface BloodRequestAttributes {
   location: string;
   urgency: 'low' | 'medium' | 'high' | 'critical';
   notes?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'fulfilled';
+  status: 'pending' | 'approved' | 'rejected' | 'fulfilled' | 'completed';
   assignedDonorId?: string;
   rejectionReason?: string;
   geotagPhoto?: string;
@@ -35,7 +35,7 @@ class BloodRequest extends Model<BloodRequestAttributes, BloodRequestCreationAtt
   public location!: string;
   public urgency!: 'low' | 'medium' | 'high' | 'critical';
   public notes?: string;
-  public status!: 'pending' | 'approved' | 'rejected' | 'fulfilled';
+  public status!: 'pending' | 'approved' | 'rejected' | 'fulfilled' | 'completed';
   public assignedDonorId?: string;
   public rejectionReason?: string;
   public geotagPhoto?: string;
@@ -119,7 +119,7 @@ BloodRequest.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'fulfilled'),
+      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'fulfilled', 'completed'),
       allowNull: false,
       defaultValue: 'pending',
     },

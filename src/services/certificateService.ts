@@ -102,6 +102,14 @@ export class CertificateService {
       certificateUrl: filePath,
     });
 
+    // Mark the related blood request as completed
+    if (certificate.requestId) {
+      const bloodRequest = await BloodRequest.findByPk(certificate.requestId);
+      if (bloodRequest) {
+        await bloodRequest.update({ status: 'completed' });
+      }
+    }
+
     return { certificate, filePath };
   }
 
