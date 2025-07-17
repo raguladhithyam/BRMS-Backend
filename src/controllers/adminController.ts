@@ -1242,20 +1242,56 @@ export const approveAndGenerateCertificate = async (req: AuthRequest, res: Respo
     const adminId = req.user!.id;
 
     const certificateService = new CertificateService();
-    
-    // First approve the certificate
-    const approvedCertificate = await certificateService.approveCertificate(certificateId, adminId);
-    
-    // Then generate the certificate
-    const { certificate, filePath } = await certificateService.generateCertificate(certificateId);
+    let certificate = await Certificate.findByPk(certificateId);
+    if (!certificate) {
+      res.status(404).json({
+        success: false,
+        message: 'Certificate not found',
+      });
+      return;
+    }
 
-    res.json({
-      success: true,
-      message: 'Certificate approved and generated successfully',
-      data: {
-        certificate,
-        downloadUrl: filePath,
-      },
+    // If pending, approve it
+    if (certificate.status === 'pending') {
+      certificate = await certificateService.approveCertificate(certificateId, adminId);
+    }
+
+    // Refetch to get updated status after possible approval
+    certificate = await Certificate.findByPk(certificateId);
+
+    // If approved, generate it
+    if (certificate && certificate.status === 'approved') {
+      const result = await certificateService.generateCertificate(certificateId);
+      certificate = result.certificate;
+      const filePath = result.filePath;
+      res.json({
+        success: true,
+        message: 'Certificate approved and generated successfully',
+        data: {
+          certificate,
+          downloadUrl: filePath,
+        },
+      });
+      return;
+    }
+
+    // If already generated, just return
+    if (certificate && certificate.status === 'generated') {
+      res.json({
+        success: true,
+        message: 'Certificate already generated',
+        data: {
+          certificate,
+          downloadUrl: certificate.certificateUrl,
+        },
+      });
+      return;
+    }
+
+    // If status is something else, return error
+    res.status(400).json({
+      success: false,
+      message: `Cannot approve/generate certificate in status: ${certificate?.status}`,
     });
   } catch (error) {
     console.error('Approve and generate certificate error:', error);

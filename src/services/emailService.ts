@@ -18,6 +18,7 @@ interface EmailData {
   subject: string;
   template: string;
   data: any;
+  attachments?: Array<{ filename: string; path: string }>;
 }
 
 const templates = {
@@ -321,7 +322,7 @@ const templates = {
 
 export const sendEmail = async (emailData: EmailData): Promise<void> => {
   try {
-    const { to, subject, template, data } = emailData;
+    const { to, subject, template, data, attachments } = emailData;
 
     const htmlContent = templates[template as keyof typeof templates](data);
 
@@ -330,6 +331,7 @@ export const sendEmail = async (emailData: EmailData): Promise<void> => {
       to: to.join(', '),
       subject,
       html: htmlContent,
+      attachments: attachments || [],
     };
 
     await transporter.sendMail(mailOptions);

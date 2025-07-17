@@ -67,10 +67,13 @@ export class CertificateService {
       adminApprovedAt: new Date(),
     });
 
-    // Send emails to all parties
-    await this.sendApprovalEmails(certificate as Certificate & { donor: User; request: BloodRequest });
+    // Generate the certificate PDF and update the certificateUrl
+    const { certificate: updatedCertificate } = await this.generateCertificate(certificateId);
 
-    return certificate;
+    // Send emails to all parties (with attachment)
+    await this.sendApprovalEmails(updatedCertificate as Certificate & { donor: User; request: BloodRequest });
+
+    return updatedCertificate;
   }
 
   async generateCertificate(certificateId: string): Promise<{ certificate: Certificate; filePath: string }> {
@@ -236,8 +239,9 @@ export class CertificateService {
 
   private async sendApprovalEmails(certificate: Certificate & { donor: User; request: BloodRequest }): Promise<void> {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@brms.com';
-    
-    // Email to donor
+    const fileName = `certificate-${certificate.certificateNumber}.pdf`;
+    const filePath = certificate.certificateUrl || '';
+    // Email to donor (with attachment)
     await sendEmail({
       to: [certificate.donor.email],
       subject: 'Blood Donation Certificate Approved',
@@ -248,9 +252,10 @@ export class CertificateService {
         donationDate: certificate.donationDate.toLocaleDateString(),
         hospitalName: certificate.hospitalName,
       },
+      attachments: filePath ? [{ filename: fileName, path: filePath }] : [],
     });
 
-    // Email to requestor
+    // Email to requestor (no attachment)
     await sendEmail({
       to: [certificate.request.email],
       subject: 'Blood Donation Completed - Certificate Generated',
@@ -263,7 +268,7 @@ export class CertificateService {
       },
     });
 
-    // Email to admin
+    // Email to admin (no attachment)
     await sendEmail({
       to: [adminEmail],
       subject: 'Certificate Approved - Blood Donation Completed',
