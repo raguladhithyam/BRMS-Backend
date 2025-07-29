@@ -10,7 +10,7 @@ dotenv.config();
 
 // Redis Client Configuration Production (Railway)
 const redisClient = createClient({
-  url: `redis://default:MqFwonGEyZblDUmpQKTweKiCwdubvbGT@centerbeam.proxy.rlwy.net:35448`
+  url: `redis://default:fLLBCZsNRTYigZLrQJAVuhBloYNtBIfq@yamanote.proxy.rlwy.net:46912`
 });
 
 redisClient.on('error', (err) => {

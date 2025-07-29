@@ -10,8 +10,8 @@ module.exports = {
     await queryInterface.bulkInsert('users', [
       {
         id: uuidv4(),
-        name: 'System Administrator',
-        email: 'admin@bloodconnect.org',
+        name: 'Software Admin',
+        email: 'mra20031006@gmail.com',
         password: hashedPassword,
         role: 'admin',
         created_at: new Date(),
