@@ -4,14 +4,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Redis Client Configuration Localhost
-// const redisClient = createClient({
-//   url: `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`
-// });
+const redisClient = createClient({
+  url: `redis://${process.env.REDIS_USERNAME}:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`
+});
 
 // Redis Client Configuration Production (Railway)
-const redisClient = createClient({
-  url: `redis://default:SqyoGDTdyQEffUuneTTYneTGKOOoocnh@centerbeam.proxy.rlwy.net:12636`
-});
+
 
 redisClient.on('error', (err) => {
   console.error('❌ Redis Client Error:', err);
