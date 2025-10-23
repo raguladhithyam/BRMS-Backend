@@ -1,23 +1,67 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
+import { ApiResponseHandler } from '../utils/apiResponse';
 
 export const validate = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const { error } = schema.validate(req.body);
+    const { error } = schema.validate(req.body, { 
+      abortEarly: false,
+      stripUnknown: true 
+    });
     
     if (error) {
-      console.log('Validation error:', error.details);
-      res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-        })),
-      });
+      const details = error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+        value: detail.context?.value
+      }));
+      
+      ApiResponseHandler.validationError(res, 'Validation failed', details);
       return;
     }
     
+    next();
+  };
+};
+
+export const validateQuery = (schema: Joi.ObjectSchema) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const { error } = schema.validate(req.query, { 
+      abortEarly: false,
+      stripUnknown: true 
+    });
+    
+    if (error) {
+      const details = error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+        value: detail.context?.value
+      }));
+      
+      ApiResponseHandler.validationError(res, 'Query validation failed', details);
+      return;
+    }
+    next();
+  };
+};
+
+export const validateParams = (schema: Joi.ObjectSchema) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const { error } = schema.validate(req.params, { 
+      abortEarly: false,
+      stripUnknown: true 
+    });
+    
+    if (error) {
+      const details = error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+        value: detail.context?.value
+      }));
+      
+      ApiResponseHandler.validationError(res, 'Parameter validation failed', details);
+      return;
+    }
     next();
   };
 };

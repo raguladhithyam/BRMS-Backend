@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import jwt, { Secret } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { User, LoginHistory } from '../models/associations';
-import redisClient from '../config/redis';
+import { getRedisClient } from '../config/redis';
 import { sendEmail } from '../services/emailService';
 import crypto from 'crypto';
 
@@ -75,7 +75,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const token = generateToken(user.id);
 
     // Store session in Redis
-    await redisClient.setEx(`session:${user.id}`, 7 * 24 * 60 * 60, token);
+    const redisClient = getRedisClient();
+    if (redisClient) {
+      await redisClient.setEx(`session:${user.id}`, 7 * 24 * 60 * 60, token);
+    } else {
+      console.warn('⚠️ Redis not available, session not cached');
+    }
 
     // Log login history
     const { ipAddress, userAgent } = getClientInfo(req);
@@ -136,7 +141,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = generateToken(user.id);
 
     // Store session in Redis
-    await redisClient.setEx(`session:${user.id}`, 7 * 24 * 60 * 60, token);
+    const redisClient = getRedisClient();
+    if (redisClient) {
+      await redisClient.setEx(`session:${user.id}`, 7 * 24 * 60 * 60, token);
+    } else {
+      console.warn('⚠️ Redis not available, session not cached');
+    }
 
     // Log login history
     const { ipAddress, userAgent } = getClientInfo(req);
@@ -177,7 +187,10 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
   try {
     if (req.user) {
       // Remove session from Redis
-      await redisClient.del(`session:${req.user.id}`);
+      const redisClient = getRedisClient();
+      if (redisClient) {
+        await redisClient.del(`session:${req.user.id}`);
+      }
       
       // Update login history
       await LoginHistory.update(

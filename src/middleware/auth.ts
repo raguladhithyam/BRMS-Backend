@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
+import { getRedisClient } from '../config/redis';
 
 interface AuthRequest extends Request {
   user?: User;
@@ -14,28 +15,67 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.',
+        code: 'NO_TOKEN'
       });
       return;
     }
 
+    // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const user = await User.findByPk(decoded.id);
+    
+    // Check Redis session for additional security
+    const redisClient = getRedisClient();
+    if (redisClient) {
+      const sessionToken = await redisClient.get(`session:${decoded.id}`);
+      if (!sessionToken || sessionToken !== token) {
+        res.status(401).json({
+          success: false,
+          message: 'Session expired. Please login again.',
+          code: 'SESSION_EXPIRED'
+        });
+        return;
+      }
+    }
+
+    const user = await User.findByPk(decoded.id, {
+      attributes: { exclude: ['password'] }
+    });
 
     if (!user) {
       res.status(401).json({
         success: false,
         message: 'Invalid token. User not found.',
+        code: 'USER_NOT_FOUND'
       });
       return;
     }
 
+    // Check if user account is valid (no additional checks needed for now)
+    // Future: Add account status checks here if needed
+
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      message: 'Invalid token.',
-    });
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({
+        success: false,
+        message: 'Token expired. Please login again.',
+        code: 'TOKEN_EXPIRED'
+      });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid token format.',
+        code: 'INVALID_TOKEN'
+      });
+    } else {
+      console.error('Authentication error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Authentication service error.',
+        code: 'AUTH_ERROR'
+      });
+    }
   }
 };
 
